@@ -1,7 +1,7 @@
 {
   "title": "Intellidog -- Event Watchdog",
   "uid": "intellidog-main",
-  "version": 1,
+  "version": 2,
   "schemaVersion": 38,
   "refresh": "10s",
   "time": { "from": "now-1h", "to": "now" },
@@ -15,8 +15,9 @@
       "datasource": "Intellidog SQLite",
       "targets": [
         {
-          "rawSql": "SELECT timestamp as time, COUNT(*) as events FROM events WHERE $__timeFilter(timestamp) GROUP BY strftime('%Y-%m-%dT%H:%M:00Z', timestamp) ORDER BY time",
-          "format": "time_series"
+          "refId": "A",
+          "rawQueryText": "SELECT strftime('%Y-%m-%dT%H:%M:00Z', timestamp) as time, COUNT(*) as events FROM events WHERE timestamp >= datetime('now', '-1 hour') GROUP BY strftime('%Y-%m-%dT%H:%M:00Z', timestamp) ORDER BY time ASC",
+          "timeColumns": ["time"]
         }
       ],
       "fieldConfig": {
@@ -34,8 +35,8 @@
       "datasource": "Intellidog SQLite",
       "targets": [
         {
-          "rawSql": "SELECT COUNT(*) as value FROM alerts WHERE status='active'",
-          "format": "table"
+          "refId": "A",
+          "rawQueryText": "SELECT COUNT(*) as value FROM alerts WHERE status='active'"
         }
       ],
       "fieldConfig": {
@@ -59,8 +60,8 @@
       "datasource": "Intellidog SQLite",
       "targets": [
         {
-          "rawSql": "SELECT COUNT(*) as value FROM alerts WHERE source='llm' AND fired_at >= datetime('now', '-1 hour')",
-          "format": "table"
+          "refId": "A",
+          "rawQueryText": "SELECT COUNT(*) as value FROM alerts WHERE source='llm' AND fired_at >= datetime('now', '-1 hour')"
         }
       ],
       "fieldConfig": {
@@ -84,8 +85,8 @@
       "datasource": "Intellidog SQLite",
       "targets": [
         {
-          "rawSql": "SELECT COUNT(*) as value FROM events WHERE timestamp >= datetime('now', '-1 hour')",
-          "format": "table"
+          "refId": "A",
+          "rawQueryText": "SELECT COUNT(*) as value FROM events WHERE timestamp >= datetime('now', '-1 hour')"
         }
       ],
       "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "blue" } } }
@@ -98,8 +99,8 @@
       "datasource": "Intellidog SQLite",
       "targets": [
         {
-          "rawSql": "SELECT COUNT(*) as value FROM events WHERE timestamp >= datetime('now', '-1 hour') AND (severity='critical' OR severity='high')",
-          "format": "table"
+          "refId": "A",
+          "rawQueryText": "SELECT COUNT(*) as value FROM events WHERE timestamp >= datetime('now', '-1 hour') AND (severity='critical' OR severity='high')"
         }
       ],
       "fieldConfig": {
@@ -123,8 +124,8 @@
       "datasource": "Intellidog SQLite",
       "targets": [
         {
-          "rawSql": "SELECT severity as metric, COUNT(*) as value FROM events WHERE timestamp >= datetime('now', '-1 hour') GROUP BY severity",
-          "format": "table"
+          "refId": "A",
+          "rawQueryText": "SELECT severity as metric, COUNT(*) as value FROM events WHERE timestamp >= datetime('now', '-1 hour') GROUP BY severity"
         }
       ]
     },
@@ -136,8 +137,8 @@
       "datasource": "Intellidog SQLite",
       "targets": [
         {
-          "rawSql": "SELECT source as metric, COUNT(*) as value FROM events WHERE timestamp >= datetime('now', '-1 hour') GROUP BY source ORDER BY value DESC LIMIT 10",
-          "format": "table"
+          "refId": "A",
+          "rawQueryText": "SELECT source as metric, COUNT(*) as value FROM events WHERE timestamp >= datetime('now', '-1 hour') GROUP BY source ORDER BY value DESC LIMIT 10"
         }
       ],
       "fieldConfig": {
@@ -152,8 +153,8 @@
       "datasource": "Intellidog SQLite",
       "targets": [
         {
-          "rawSql": "SELECT fired_at, rule_name, severity, status, source, message FROM alerts ORDER BY fired_at DESC LIMIT 20",
-          "format": "table"
+          "refId": "A",
+          "rawQueryText": "SELECT fired_at, rule_name, severity, status, source, message FROM alerts ORDER BY fired_at DESC LIMIT 20"
         }
       ]
     },
@@ -165,8 +166,9 @@
       "datasource": "Intellidog SQLite",
       "targets": [
         {
-          "rawSql": "SELECT timestamp as time, CAST(json_extract(payload, '$.duration_ms') AS REAL) as p99_ms FROM events WHERE $__timeFilter(timestamp) AND json_extract(payload, '$.duration_ms') IS NOT NULL ORDER BY time",
-          "format": "time_series"
+          "refId": "A",
+          "rawQueryText": "SELECT strftime('%Y-%m-%dT%H:%M:00Z', timestamp) as time, CAST(json_extract(payload, '$.duration_ms') AS REAL) as latency_ms FROM events WHERE timestamp >= datetime('now', '-1 hour') AND json_extract(payload, '$.duration_ms') IS NOT NULL ORDER BY time ASC",
+          "timeColumns": ["time"]
         }
       ],
       "fieldConfig": {
@@ -191,8 +193,8 @@
       "datasource": "Intellidog SQLite",
       "targets": [
         {
-          "rawSql": "SELECT fired_at, rule_name, severity, message FROM alerts WHERE source='llm' ORDER BY fired_at DESC LIMIT 20",
-          "format": "table"
+          "refId": "A",
+          "rawQueryText": "SELECT fired_at, rule_name, severity, message FROM alerts WHERE source='llm' ORDER BY fired_at DESC LIMIT 20"
         }
       ]
     }

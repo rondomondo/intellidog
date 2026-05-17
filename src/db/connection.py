@@ -26,6 +26,7 @@ def get_connection(db_path: Path) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA wal_autocheckpoint=100")
     _connection = conn
     logger.info("SQLite connection opened: %s (WAL mode)", db_path)
     return _connection
