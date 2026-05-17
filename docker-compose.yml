@@ -45,8 +45,9 @@ services:
             start_period: 15s
 
     grafana:
-        #image: grafana/grafana-oss:latest
-        image: grafana/grafana
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.grafana
         restart: unless-stopped
         ports:
             - '3000:3000'
@@ -54,8 +55,8 @@ services:
             - GF_SECURITY_ADMIN_USER=admin
             - GF_SECURITY_ADMIN_PASSWORD=admin
             #- GF_USERS_ALLOW_SIGN_UP=false
-            #- GF_INSTALL_PLUGINS=frser-sqlite-datasource
-            #- GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/provisioning/dashboards/intellidog.json
+            - GF_INSTALL_PLUGINS=frser-sqlite-datasource
+            - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/provisioning/dashboards/intellidog.json
         volumes:
             - grafana_data:/var/lib/grafana
             - ./grafana/provisioning:/etc/grafana/provisioning:ro

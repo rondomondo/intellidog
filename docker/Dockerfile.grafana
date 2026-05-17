@@ -1,0 +1,8 @@
+FROM grafana/grafana:latest
+
+# Make grafana-cli available as a first-class command on PATH.
+# The binary ships as /usr/share/grafana/bin/grafana but that directory
+# is not on the default PATH in the official image.
+USER root
+RUN ln -s /usr/share/grafana/bin/grafana /usr/local/bin/grafana-cli
+USER grafana
