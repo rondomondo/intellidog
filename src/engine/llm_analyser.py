@@ -102,7 +102,7 @@ class LLMAnalyser:
 
             response = self._client.messages.create(
                 model=self._model,
-                max_tokens=1024,
+                max_tokens=4096,
                 system=self._system_prompt_cache,
                 messages=[
                     {
@@ -112,6 +112,12 @@ class LLMAnalyser:
                 ],
             )
             raw = response.content[0].text.strip()
+            # Strip markdown fences if the model wraps its response despite instructions
+            if raw.startswith("```"):
+                raw = raw.split("```", 2)[1]
+                if raw.startswith("json"):
+                    raw = raw[4:]
+                raw = raw.rstrip("`").strip()
             result: dict[str, Any] = json.loads(raw)
         except anthropic.APIError as exc:
             logger.error("LLM API error during analysis: %s", exc)
