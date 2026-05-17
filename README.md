@@ -8,6 +8,59 @@ Intellidog is a self-hosted event ingestion, alerting, and anomaly-detection ser
 
 ---
 
+## The core thesis: LLM anomaly detection vs static rules
+
+This is the point of Intellidog. Static threshold rules are fast and predictable -- but they are blind to anything you did not think to write a rule for. The LLM layer exists to catch what rules miss.
+
+### Out of the box: MockLLMAnalyser
+
+When no Anthropic API key is configured, Intellidog runs `MockLLMAnalyser` automatically. It is fully functional and exercises the entire alert pipeline -- events flow through Redis, the analyser fires, alerts land in SQLite, and Grafana renders them. It uses deterministic heuristics to simulate plausible findings:
+
+- **High error rate** -- flags when more than 40% of events in the window are `critical` or `high` severity
+- **Latency spike** -- identifies any event with `duration_ms` above 3000ms and reports the worst offender
+- **Source burst** -- detects when a single service emits more than 5 events in the window (retry storm, misconfigured emitter)
+- **Ambient anomaly** -- fires a low-probability random finding on quiet traffic to keep the pipeline exercised
+
+This is enough to demonstrate the full system and run all 116 tests in CI without any external dependency.
+
+### With a real Anthropic API key: the difference is stark
+
+When `INTELLIDOG_LLM_API_KEY` is set, the real `LLMAnalyser` takes over. It sends the rolling event window to Claude with a structured prompt and asks for JSON anomaly findings. On the first live run against a 30-event critical spike, Claude returned five findings that no static rule would have caught:
+
+| Severity | Finding |
+|----------|---------|
+| **critical** | Simultaneous Critical Error Storm Across All Services |
+| **critical** | Database Connection Pool Exhausted Across Multiple Services |
+| **high** | Payment Gateway Timeouts Propagating Beyond Payment Service |
+| **high** | JWT Validation Failures Appearing on Non-Auth Services |
+| **medium** | Elevated Response Durations Inconsistent with Reported Errors |
+
+The mock would have flagged "high error rate" and "latency spike" -- correct, but blunt. Claude identified the *causal chain*: DB pool exhaustion driving payment timeouts, which propagated JWT failures to services that shouldn't be affected at all, with latency readings that didn't match the error pattern (a sign of partial degradation, not full outage). These are the cross-service correlation insights that take an on-call engineer several minutes of log-diving to piece together manually.
+
+To enable it:
+
+```bash
+echo "INTELLIDOG_LLM_API_KEY=sk-ant-..." > .env
+make up
+```
+
+The `/health` endpoint confirms the LLM is active:
+
+```json
+{
+  "status": "ok",
+  "components": {
+    "database": "ok",
+    "redis": "ok",
+    "llm": "ok"
+  }
+}
+```
+
+LLM findings appear in `/alerts` with `"source": "llm"` and are visible in the Grafana dashboard alongside rule-based alerts.
+
+---
+
 ## Table of contents
 
 1. [Quick start](#quick-start)
