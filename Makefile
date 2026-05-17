@@ -150,6 +150,22 @@ inject-anomaly: check-venv ## Inject a latency spike anomaly event
 alert-scenario: check-venv ## Run the 'spike' alert scenario
 	$(VENV)/bin/python $(TOOLS_DIR)/generate_alerts.py --scenario spike
 
+.PHONY: alert-error-rate-80
+alert-error-rate-80: check-venv ## Inject 80% critical events to breach the critical error rate threshold
+	$(VENV)/bin/python $(TOOLS_DIR)/generate_alerts.py --scenario error-rate-80
+
+.PHONY: webhook-test
+webhook-test: check-venv ## POST a simulated Grafana alerting webhook and show stored entries
+	$(VENV)/bin/python $(TOOLS_DIR)/generate_alerts.py --scenario webhook
+
+.PHONY: webhook-resolve
+webhook-resolve: check-venv ## POST a simulated Grafana resolved webhook
+	$(VENV)/bin/python $(TOOLS_DIR)/generate_alerts.py --scenario webhook-resolve
+
+.PHONY: webhook-show
+webhook-show: ## GET the last 10 Grafana webhook payloads received
+	curl -s http://localhost:8000/webhook/grafana | python3 -m json.tool
+
 .PHONY: query
 query: check-venv ## Query and print recent events from the API
 	$(VENV)/bin/python $(TOOLS_DIR)/query_events.py events --limit 20

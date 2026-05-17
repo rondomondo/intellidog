@@ -34,6 +34,17 @@ rules:
     severity: high
     enabled: true
 
+  - id: critical_error_rate_threshold
+    name: Critical Error Rate Threshold
+    description: Triggers when 80 percent or more of events are high or critical severity -- severe degradation
+    condition:
+      metric: error_rate
+      operator: ">="
+      threshold: 80.0
+      window_seconds: 300
+    severity: critical
+    enabled: true
+
   - id: p99_latency_breach
     name: P99 Latency SLO Breach
     description: Triggers when p99 duration_ms exceeds 5000ms in a 5-minute window

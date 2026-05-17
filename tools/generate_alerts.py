@@ -13,6 +13,9 @@ SCENARIOS = {
     "sustained": "Inject error events every 2 seconds for a sustained period",
     "recovery": "Inject info events to simulate service recovery after an incident",
     "latency": "Inject high-latency metric events to trigger p99/p95 rules",
+    "webhook": "POST a simulated Grafana alert webhook payload to /webhook/grafana",
+    "webhook-resolve": "POST a simulated Grafana resolved webhook payload to /webhook/grafana",
+    "error-rate-80": "Inject enough critical events to breach the 80% error rate threshold",
 }
 
 
@@ -101,6 +104,82 @@ def main() -> None:
 
         events = [_latency_event(random.randint(5000, 20000), args.source) for _ in range(args.count)]
         post_batch(events)
+
+    elif args.scenario == "error-rate-80":
+        # 80 critical + 20 info = 80% error rate, breaches the critical threshold rule
+        critical_events = [_error_event(args.source) for _ in range(80)]
+        info_events = [
+            {
+                "source": args.source,
+                "event_type": "info",
+                "severity": "info",
+                "message": "Baseline healthy request",
+                "payload": {"duration_ms": 20},
+                "tags": ["scenario", "error_rate_80"],
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
+            for _ in range(20)
+        ]
+        post_batch(critical_events + info_events)
+
+    elif args.scenario in ("webhook", "webhook-resolve"):
+        state = "alerting" if args.scenario == "webhook" else "ok"
+        status_label = "firing" if state == "alerting" else "resolved"
+        payload = {
+            "receiver": "intellidog-webhook",
+            "status": state,
+            "alerts": [
+                {
+                    "status": status_label,
+                    "labels": {
+                        "alertname": "Critical Error Rate Threshold",
+                        "severity": "critical",
+                        "source": args.source,
+                        "rule_id": "critical_error_rate_threshold",
+                    },
+                    "annotations": {
+                        "summary": f"Error rate exceeded 80% on {args.source}",
+                        "description": (
+                            "The proportion of critical/high severity events has breached the 80% threshold. "
+                            "Immediate investigation required."
+                        ),
+                    },
+                    "startsAt": datetime.now(UTC).isoformat(),
+                    "endsAt": "0001-01-01T00:00:00Z" if state == "alerting" else datetime.now(UTC).isoformat(),
+                    "generatorURL": f"http://localhost:3000/alerting/list",
+                    "fingerprint": "abc123def456",
+                }
+            ],
+            "groupLabels": {"alertname": "Critical Error Rate Threshold"},
+            "commonLabels": {"severity": "critical"},
+            "commonAnnotations": {"summary": f"Error rate exceeded 80% on {args.source}"},
+            "externalURL": "http://localhost:3000",
+            "version": "1",
+            "groupKey": f"{{}}:{{alertname='Critical Error Rate Threshold'}}",
+            "truncatedAlerts": 0,
+            "orgId": 1,
+            "title": f"[{status_label.upper()}] Critical Error Rate Threshold",
+            "state": state,
+            "message": f"Error rate on {args.source} is above 80%",
+        }
+        if args.dry_run:
+            print(json.dumps(payload, indent=2, ensure_ascii=False))
+            return
+        with httpx.Client(timeout=10.0) as client:
+            try:
+                r = client.post(f"{base}/webhook/grafana", json=payload)
+                r.raise_for_status()
+                print(f"Webhook POSTed ({state}): HTTP {r.status_code}")
+                # Immediately show what the endpoint recorded
+                r2 = client.get(f"{base}/webhook/grafana")
+                data = r2.json()
+                print(f"Stored entries: {data['count']}/{data['max']}")
+                if data["entries"]:
+                    latest = data["entries"][0]
+                    print(f"  Latest: received_at={latest['received_at']} state={latest['payload'].get('status')}")
+            except httpx.HTTPError as exc:
+                print(f"ERROR: {exc}", file=sys.stderr)
+                sys.exit(1)
 
 
 if __name__ == "__main__":

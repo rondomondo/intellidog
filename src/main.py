@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from src.api import alerts, health, ingest, metrics, query
+from src.api import alerts, health, ingest, metrics, query, webhook
 from src.bus.publisher import Publisher
 from src.bus.subscriber import Subscriber
 from src.config import get_settings
@@ -151,6 +151,7 @@ def create_app() -> FastAPI:
     app.include_router(query.router)
     app.include_router(alerts.router)
     app.include_router(metrics.router)
+    app.include_router(webhook.router)
     return app
 
 

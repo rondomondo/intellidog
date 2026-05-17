@@ -1,0 +1,15 @@
+rules:
+  - id: llm_anomaly_burst
+    name: LLM Anomaly Burst
+    description: >
+      Triggers when the LLM analyser detects 3 or more anomalies within a 1-hour window.
+      This rule is engine-side and complements the LLM's own alert generation -- enable
+      when running with a real API key so anomaly volume itself becomes a signal.
+    condition:
+      metric: events_per_minute
+      operator: ">"
+      threshold: 0
+      window_seconds: 3600
+      event_type: error
+    severity: critical
+    enabled: false
