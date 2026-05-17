@@ -1,0 +1,101 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: intellidog-api-alerts
+    folder: Intellidog
+    interval: 1m
+    rules:
+      - uid: intellidog-error-rate-alert
+        title: "High Error Rate (>=80%)"
+        condition: threshold
+        for: 0s
+        noDataState: OK
+        execErrState: OK
+        labels:
+          severity: critical
+          source: intellidog-api
+        annotations:
+          summary: "Error rate is critically high"
+          description: "The 5-minute error rate has reached {{ $values.threshold.Value | printf \"%.1f\" }}% -- breach of the 80% critical threshold."
+        data:
+          - refId: metrics
+            queryType: infinity
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: intellidog-api
+            model:
+              type: json
+              parser: backend
+              source: url
+              url: http://intellidog:8000/metrics/summary
+              url_options:
+                method: GET
+              refId: metrics
+              columns:
+                - selector: rate.error_rate_pct
+                  text: error_rate_pct
+                  type: number
+          - refId: threshold
+            queryType: __expr__
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: threshold
+              expression: metrics
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 80.0
+
+      - uid: intellidog-active-alerts-alert
+        title: "LLM Anomaly Burst (>10 in 1h)"
+        condition: threshold
+        for: 0s
+        noDataState: OK
+        execErrState: OK
+        labels:
+          severity: high
+          source: intellidog-api
+        annotations:
+          summary: "LLM anomaly count is elevated"
+          description: "More than 10 LLM-detected anomalies in the last hour -- possible cascade or noisy signal."
+        data:
+          - refId: metrics
+            queryType: infinity
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: intellidog-api
+            model:
+              type: json
+              parser: backend
+              source: url
+              url: http://intellidog:8000/metrics/summary
+              url_options:
+                method: GET
+              refId: metrics
+              columns:
+                - selector: llm_anomalies_last_hour
+                  text: llm_anomalies_last_hour
+                  type: number
+          - refId: threshold
+            queryType: __expr__
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: threshold
+              expression: metrics
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 10

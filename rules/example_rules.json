@@ -1,0 +1,17 @@
+{
+  "rules": [
+    {
+      "id": "distinct_source_spike",
+      "name": "Distinct Source Spike",
+      "description": "Fires when more than 20 distinct sources emit events in 5 minutes -- may indicate a broadcast fault",
+      "condition": {
+        "metric": "distinct_sources",
+        "operator": ">",
+        "threshold": 20,
+        "window_seconds": 300
+      },
+      "severity": "medium",
+      "enabled": false
+    }
+  ]
+}

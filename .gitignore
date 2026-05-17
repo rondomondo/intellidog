@@ -90,6 +90,14 @@ seed/**
 testdata/
 testdata/**
 
+# -- Intellidog runtime data ---------------------------------------------------
+data/
+data/**
+e2e.txt
+certs/*.crt
+certs/*.key
+
+
 # -- Claude -------------------------------------------------------------------
 .claude/.simplify-ignore-cache/
 .claude/sdd-cache/
