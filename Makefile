@@ -109,6 +109,65 @@ test: check-venv ## Run Python tests with coverage
 ci: format lint typecheck test ## Run full CI pipeline
 	@echo "CI passed"
 
+# -- Intellidog app -------------------------------------------
+TOOLS_DIR := tools
+
+.PHONY: run
+run: check-venv ## Start the Intellidog API server (local, no Docker)
+	$(VENV)/bin/uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+
+.PHONY: up
+up: ## Build and start all services (API + Redis + Grafana) via docker-compose
+	@mkdir -p data rules
+	docker compose up --build -d
+	@printf "$(GREEN)Services started. API: http://localhost:8000  Grafana: http://localhost:3000$(RESET)\n"
+
+.PHONY: down
+down: ## Stop and remove all docker-compose services
+	docker compose down
+
+.PHONY: logs
+logs: ## Tail docker-compose service logs
+	docker compose logs --follow
+
+.PHONY: ps
+ps: ## Show docker-compose service status
+	docker compose ps
+
+.PHONY: generate
+generate: check-venv ## Generate and POST synthetic events to the API (default 20 events + 10 logs)
+	$(VENV)/bin/python $(TOOLS_DIR)/generate_events.py
+
+.PHONY: generate-spike
+generate-spike: check-venv ## Generate an error spike (all critical events)
+	$(VENV)/bin/python $(TOOLS_DIR)/generate_events.py --spike --count 60
+
+.PHONY: inject-anomaly
+inject-anomaly: check-venv ## Inject a latency spike anomaly event
+	$(VENV)/bin/python $(TOOLS_DIR)/inject_anomaly.py --type latency_spike
+
+.PHONY: alert-scenario
+alert-scenario: check-venv ## Run the 'spike' alert scenario
+	$(VENV)/bin/python $(TOOLS_DIR)/generate_alerts.py --scenario spike
+
+.PHONY: query
+query: check-venv ## Query and print recent events from the API
+	$(VENV)/bin/python $(TOOLS_DIR)/query_events.py events --limit 20
+
+.PHONY: screenshots
+screenshots: ## Capture UI screenshots via Playwright Docker image (requires services running)
+	./scripts/run_screenshots.sh
+
+.PHONY: gen-cert
+gen-cert: check-venv ## Generate self-signed TLS certs for local HTTPS (output: certs/)
+	mkdir -p certs
+	openssl req -x509 -newkey rsa:4096 -sha256 -days 365 -nodes \
+		-keyout certs/intellidog.key \
+		-out certs/intellidog.crt \
+		-subj "/CN=localhost" \
+		-addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+	@printf "$(GREEN)Certs written to certs/$(RESET)\n"
+
 # -- Docker ----------------------------------------------------
 .PHONY: docker-build
 docker-build: ## Build the devcontainer image locally (IMAGE_NAME, IMAGE_TAG, DOCKERFILE overridable)

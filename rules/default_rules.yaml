@@ -1,0 +1,70 @@
+rules:
+  - id: high_error_event_rate
+    name: High Error Event Rate
+    description: Triggers when error-type events exceed 10 per minute in a 60s window
+    condition:
+      metric: events_per_minute
+      event_type: error
+      operator: ">"
+      threshold: 10
+      window_seconds: 60
+    severity: high
+    enabled: true
+
+  - id: critical_error_event_rate
+    name: Critical Error Event Rate
+    description: Triggers when error-type events exceed 30 per minute
+    condition:
+      metric: events_per_minute
+      event_type: error
+      operator: ">"
+      threshold: 30
+      window_seconds: 60
+    severity: critical
+    enabled: true
+
+  - id: high_overall_error_rate
+    name: High Overall Error Rate
+    description: Triggers when more than 20 percent of events are high or critical severity
+    condition:
+      metric: error_rate
+      operator: ">"
+      threshold: 20.0
+      window_seconds: 300
+    severity: high
+    enabled: true
+
+  - id: p99_latency_breach
+    name: P99 Latency SLO Breach
+    description: Triggers when p99 duration_ms exceeds 5000ms in a 5-minute window
+    condition:
+      metric: p99
+      field: duration_ms
+      operator: ">"
+      threshold: 5000
+      window_seconds: 300
+    severity: critical
+    enabled: true
+
+  - id: p95_latency_warning
+    name: P95 Latency Warning
+    description: Triggers when p95 duration_ms exceeds 2000ms
+    condition:
+      metric: p95
+      field: duration_ms
+      operator: ">"
+      threshold: 2000
+      window_seconds: 300
+    severity: medium
+    enabled: true
+
+  - id: log_error_spike
+    name: Log Error Rate Spike
+    description: Triggers when more than 30 percent of log entries are ERROR level
+    condition:
+      metric: log_error_rate
+      operator: ">"
+      threshold: 30.0
+      window_seconds: 120
+    severity: high
+    enabled: true

@@ -1,0 +1,69 @@
+services:
+    redis:
+        image: redis:7-alpine
+        restart: unless-stopped
+        ports:
+            - '6379:6379'
+        volumes:
+            - redis_data:/data
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        command: redis-server --save 60 1 --loglevel warning
+
+    intellidog:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile
+        restart: unless-stopped
+        ports:
+            - '8000:8000'
+        environment:
+            - INTELLIDOG_ENV=production
+            - INTELLIDOG_DB_PATH=/app/data/events.db
+            - INTELLIDOG_REDIS_URL=redis://redis:6379/0
+            - INTELLIDOG_REDIS_CHANNEL=intellidog:events
+            - INTELLIDOG_LLM_API_KEY=${INTELLIDOG_LLM_API_KEY:-}
+            - INTELLIDOG_LLM_MODEL=${INTELLIDOG_LLM_MODEL:-claude-sonnet-4-6}
+            - INTELLIDOG_LLM_INTERVAL_SECONDS=${INTELLIDOG_LLM_INTERVAL_SECONDS:-60}
+            - INTELLIDOG_LLM_ENABLED=${INTELLIDOG_LLM_ENABLED:-true}
+            - INTELLIDOG_COMPACTION_DAYS=${INTELLIDOG_COMPACTION_DAYS:-30}
+            - INTELLIDOG_LOG_LEVEL=${INTELLIDOG_LOG_LEVEL:-INFO}
+        volumes:
+            - ./data:/app/data
+            - ./rules:/app/rules:ro
+        depends_on:
+            redis:
+                condition: service_healthy
+        healthcheck:
+            test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+            interval: 15s
+            timeout: 5s
+            retries: 5
+            start_period: 15s
+
+    grafana:
+        #image: grafana/grafana-oss:latest
+        image: grafana/grafana
+        restart: unless-stopped
+        ports:
+            - '3000:3000'
+        environment:
+            - GF_SECURITY_ADMIN_USER=admin
+            - GF_SECURITY_ADMIN_PASSWORD=admin
+            #- GF_USERS_ALLOW_SIGN_UP=false
+            #- GF_INSTALL_PLUGINS=frser-sqlite-datasource
+            #- GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/provisioning/dashboards/intellidog.json
+        volumes:
+            - grafana_data:/var/lib/grafana
+            - ./grafana/provisioning:/etc/grafana/provisioning:ro
+            - ./data:/app/data:ro
+        depends_on:
+            intellidog:
+                condition: service_healthy
+
+volumes:
+    redis_data:
+    grafana_data:
