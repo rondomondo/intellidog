@@ -41,6 +41,8 @@ dev = [
     "black>=24.0",
     "isort>=5.13",
     "autopep8",
+    "python-pptx>=1.0.0",
+    "requests>=2.32.0",
 ]
 
 [project.scripts]

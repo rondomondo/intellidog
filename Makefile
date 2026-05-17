@@ -112,6 +112,10 @@ ci: format lint typecheck test ## Run full CI pipeline
 # -- Intellidog app -------------------------------------------
 TOOLS_DIR := tools
 
+.PHONY: slides
+slides: check-venv ## Generate the 12-slide highlight deck (output: docs/intellidog.pptx)
+	$(VENV)/bin/python $(TOOLS_DIR)/make_pptx.py
+
 .PHONY: run
 run: check-venv ## Start the Intellidog API server (local, no Docker)
 	$(VENV)/bin/uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
