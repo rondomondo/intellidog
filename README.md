@@ -142,6 +142,14 @@ export INTELLIDOG_REDIS_URL=redis://localhost:6379/0
 make run          # starts uvicorn on :8000 with --reload
 ```
 
+### Mission control: http://localhost:8000
+
+The API root serves a dark-themed HTML index -- a single-page mission control that lists every GETable route in the system, grouped by function. It is the first place to check after `make up`: if it loads, the API and database are up; if `/health` shows all green, Redis and the LLM are too.
+
+![Intellidog index page](assets/screenshots/index_page.png)
+
+From here you can navigate directly to `/health` for dependency status, `/docs` for the interactive Swagger UI, `/metrics/summary` for live rate and latency data, or any of the query and alert endpoints -- no curl required.
+
 ### First-time Grafana login
 
 Navigate to http://localhost:3000 and sign in with `admin` / `admin`. The dashboard and all provisioned resources load automatically.
