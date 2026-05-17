@@ -1,0 +1,153 @@
+# ============================================================
+# intellidog — Makefile
+# ============================================================
+.DEFAULT_GOAL := help
+MAKEFLAGS     += --no-print-directory
+SHELL         := /bin/bash
+
+# -- Colors ---------------------------------------------------
+BOLD   := \033[1m
+RED    := \033[31m
+GREEN  := \033[32m
+CYAN   := \033[36m
+YELLOW := \033[33m
+RESET  := \033[0m
+
+# -- Tooling --------------------------------------------------
+PYTHON   := python3
+VENV     := .venv
+PIP      := $(VENV)/bin/pip
+PYTEST   := $(VENV)/bin/pytest
+RUFF     := $(VENV)/bin/ruff
+MYPY     := $(VENV)/bin/mypy
+BLACK    := $(VENV)/bin/black
+ISORT    := $(VENV)/bin/isort
+
+# -- Docker config (override on the command line as needed) ---
+IMAGE_NAME := intellidog
+IMAGE_TAG  := latest
+DOCKERFILE := .devcontainer/Dockerfile
+
+# System packages that must be present before the venv can be used.
+SYS_DEPS := git fzf jq python3
+
+# -- Help ------------------------------------------------------
+.PHONY: help
+help: ## Show this help message
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
+		| awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-20s$(RESET) %s\n", $$1, $$2}'
+
+
+.PHONY: check-sys-deps
+check-sys-deps: ## Verify required system packages are installed (Linux only; skipped on macOS)
+	@if [ "$$(uname)" = "Darwin" ]; then \
+	  echo "  check-sys-deps skipped (macOS)"; \
+	  exit 0; \
+	fi; \
+	missing=""; \
+	for pkg in $(SYS_DEPS); do \
+	  if ! command -v $$pkg >/dev/null 2>&1; then \
+	    missing="$$missing $$pkg"; \
+	  fi; \
+	done; \
+	if [ -n "$$missing" ]; then \
+	  printf "$(RED)ERROR:$(RESET) missing system packages:$$missing\n"; \
+	  exit 1; \
+	fi; \
+	echo "  system deps OK"
+
+.PHONY: venv
+venv: ## Create Python virtual environment (recreates if interpreter path is stale)
+	@stale=0; \
+	if [ -d "$(VENV)" ]; then \
+		interp=$$(head -1 $(VENV)/bin/pip 2>/dev/null | sed 's/^#!//'); \
+		if [ -n "$$interp" ] && [ ! -f "$$interp" ]; then \
+			printf "$(YELLOW)Stale venv (interpreter $$interp missing) — recreating...$(RESET)\n"; \
+			rm -rf $(VENV); \
+			stale=1; \
+		fi; \
+	fi; \
+	if [ ! -d "$(VENV)" ]; then \
+		printf "$(GREEN)Creating venv in $(VENV)...$(RESET)\n"; \
+		$(PYTHON) -m venv $(VENV); \
+		$(PIP) install --upgrade pip; \
+		printf "$(GREEN)Venv created. Activate with: source $(VENV)/bin/activate$(RESET)\n"; \
+	elif [ "$$stale" = "0" ]; then \
+		printf "$(YELLOW)Venv already exists.$(RESET)\n"; \
+	fi
+
+.PHONY: install
+install: check-sys-deps venv ## Install development dependencies
+	@$(PIP) install --quiet --upgrade pip
+	@$(PIP) install -e ".[dev]"
+	@printf "$(GREEN)Dependencies installed.$(RESET)\n"
+
+.PHONY: check-venv
+check-venv: ## Verify venv exists
+	@test -d $(VENV) || (printf "$(RED)ERROR:$(RESET) venv not found. Run: make install\n"; exit 1)
+
+# -- Code quality ----------------------------------------------
+.PHONY: format
+format: check-venv ## Format Python code (black + isort)
+	$(BLACK) src/ tests/
+	$(ISORT) src/ tests/
+
+.PHONY: lint
+lint: check-venv ## Lint Python code (ruff + mypy)
+	$(RUFF) check --fix src/ tests/
+	$(MYPY) src/
+
+.PHONY: typecheck
+typecheck: check-venv ## Run mypy type checks
+	$(MYPY) src/
+
+.PHONY: test
+test: check-venv ## Run Python tests with coverage
+	$(PYTEST) tests/ -v --tb=short --cov=src --cov-report=term-missing
+
+.PHONY: ci
+ci: format lint typecheck test ## Run full CI pipeline
+	@echo "CI passed"
+
+# -- Docker ----------------------------------------------------
+.PHONY: docker-build
+docker-build: ## Build the devcontainer image locally (IMAGE_NAME, IMAGE_TAG, DOCKERFILE overridable)
+	docker build \
+		--file $(DOCKERFILE) \
+		--tag $(IMAGE_NAME):$(IMAGE_TAG) \
+		.
+
+.PHONY: docker-run
+docker-run: ## Run the image interactively, mounting the project root to /workspace
+	docker run --rm -it \
+		--volume "$(PWD):/workspace" \
+		--workdir /workspace \
+		$(IMAGE_NAME):$(IMAGE_TAG)
+
+.PHONY: docker-shell
+docker-shell: ## Open a shell in the image (alias for docker-run with explicit bash)
+	docker run --rm -it \
+		--volume "$(PWD):/workspace" \
+		--workdir /workspace \
+		$(IMAGE_NAME):$(IMAGE_TAG) bash
+
+# -- Clean ----------------------------------------------------
+.PHONY: clean-pyc
+clean-pyc: ## Remove Python bytecode and tool caches
+	@printf "$(CYAN)Cleaning$(RESET) Python caches...\n"
+	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name .pytest_cache -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name .mypy_cache  -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name .ruff_cache  -exec rm -rf {} + 2>/dev/null || true
+	@find . -name "*.pyc" -delete 2>/dev/null || true
+	@printf "  $(GREEN)ok$(RESET)\n"
+
+.PHONY: clean
+clean: clean-pyc ## Remove build artifacts and caches
+	@printf "$(CYAN)Cleaning$(RESET) build artifacts...\n"
+	@find . -type d -name dist         -exec rm -rf {} + 2>/dev/null || true
+	@find . -type d -name build        -exec rm -rf {} + 2>/dev/null || true
+	@find . -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+	@rm -rf coverage/ .coverage htmlcov/ 2>/dev/null || true
+	@rm -rf $(VENV)
+	@printf "  $(GREEN)ok$(RESET)\n"
