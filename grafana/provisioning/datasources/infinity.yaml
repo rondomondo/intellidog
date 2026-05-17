@@ -1,0 +1,13 @@
+apiVersion: 1
+
+datasources:
+  - name: Intellidog API
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    uid: intellidog-api
+    jsonData:
+      tlsSkipVerify: true
+      allowedHosts:
+        - http://intellidog:8000
+    version: 1
+    editable: false
