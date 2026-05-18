@@ -6,6 +6,8 @@ Intellidog is a self-hosted event ingestion, alerting, and anomaly-detection ser
 
 ![Grafana dashboard](assets/screenshots/grafana_dashboard.png)
 
+> **Live demo:** [Dashboard](http://52.86.102.159:8000/) | [Grafana](http://52.86.102.159:3000/)
+
 > **Slide deck:** [View the Intellidog presentation on Google Slides](https://docs.google.com/presentation/d/1FlBG6_UyHno2dtx56L2yNmGjP_XkPGVIhjdy0l_5emw/edit?usp=sharing) -- or generate a local copy with `make slides`.
 
 ---
