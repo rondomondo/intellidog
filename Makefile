@@ -112,6 +112,11 @@ ci: format lint typecheck test ## Run full CI pipeline
 # -- Intellidog app -------------------------------------------
 TOOLS_DIR := tools
 
+# Override on the command line to target a remote host, e.g.:
+#   make generate HOST=http://alertstack.org
+HOST      := http://localhost:8000
+HOST_ARG  := $(if $(filter-out http://localhost:8000,$(HOST)),--host $(HOST),)
+
 .PHONY: slides
 slides: check-venv ## Generate the 12-slide highlight deck (output: docs/intellidog.pptx)
 	$(VENV)/bin/python $(TOOLS_DIR)/make_pptx.py
@@ -140,39 +145,39 @@ ps: ## Show docker-compose service status
 
 .PHONY: generate
 generate: check-venv ## Generate and POST synthetic events to the API (default 20 events + 10 logs)
-	$(VENV)/bin/python $(TOOLS_DIR)/generate_events.py
+	$(VENV)/bin/python $(TOOLS_DIR)/generate_events.py $(HOST_ARG)
 
 .PHONY: generate-spike
 generate-spike: check-venv ## Generate an error spike (all critical events)
-	$(VENV)/bin/python $(TOOLS_DIR)/generate_events.py --spike --count 60
+	$(VENV)/bin/python $(TOOLS_DIR)/generate_events.py --spike --count 60 $(HOST_ARG)
 
 .PHONY: inject-anomaly
 inject-anomaly: check-venv ## Inject a latency spike anomaly event
-	$(VENV)/bin/python $(TOOLS_DIR)/inject_anomaly.py --type latency_spike
+	$(VENV)/bin/python $(TOOLS_DIR)/inject_anomaly.py --type latency_spike $(HOST_ARG)
 
 .PHONY: alert-scenario
 alert-scenario: check-venv ## Run the 'spike' alert scenario
-	$(VENV)/bin/python $(TOOLS_DIR)/generate_alerts.py --scenario spike
+	$(VENV)/bin/python $(TOOLS_DIR)/generate_alerts.py --scenario spike $(HOST_ARG)
 
 .PHONY: alert-error-rate-80
 alert-error-rate-80: check-venv ## Inject 80% critical events to breach the critical error rate threshold
-	$(VENV)/bin/python $(TOOLS_DIR)/generate_alerts.py --scenario error-rate-80
+	$(VENV)/bin/python $(TOOLS_DIR)/generate_alerts.py --scenario error-rate-80 $(HOST_ARG)
 
 .PHONY: webhook-test
 webhook-test: check-venv ## POST a simulated Grafana alerting webhook and show stored entries
-	$(VENV)/bin/python $(TOOLS_DIR)/generate_alerts.py --scenario webhook
+	$(VENV)/bin/python $(TOOLS_DIR)/generate_alerts.py --scenario webhook $(HOST_ARG)
 
 .PHONY: webhook-resolve
 webhook-resolve: check-venv ## POST a simulated Grafana resolved webhook
-	$(VENV)/bin/python $(TOOLS_DIR)/generate_alerts.py --scenario webhook-resolve
+	$(VENV)/bin/python $(TOOLS_DIR)/generate_alerts.py --scenario webhook-resolve $(HOST_ARG)
 
 .PHONY: webhook-show
 webhook-show: ## GET the last 10 Grafana webhook payloads received
-	curl -s http://localhost:8000/webhook/grafana | python3 -m json.tool
+	curl -s $(HOST)/webhook/grafana | python3 -m json.tool
 
 .PHONY: query
 query: check-venv ## Query and print recent events from the API
-	$(VENV)/bin/python $(TOOLS_DIR)/query_events.py events --limit 20
+	$(VENV)/bin/python $(TOOLS_DIR)/query_events.py events --limit 20 $(HOST_ARG)
 
 .PHONY: screenshots
 screenshots: ## Capture UI screenshots via Playwright Docker image (requires services running)

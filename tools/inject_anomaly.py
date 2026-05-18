@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """Inject a single out-of-band anomaly event to test LLM and threshold detection."""
 
 import argparse
